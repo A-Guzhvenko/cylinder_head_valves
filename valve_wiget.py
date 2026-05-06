@@ -240,164 +240,180 @@ class HandlerClass:
         pos = self._get_linuxcnc_position()
         return round(pos[2], 2)
 
-    def create_program(self):
+    def create_program(self, mode: str = "pilot"):
+        """Создать программу поиска центра.
+        
+        Args:
+            mode: режим работы - "pilot" (поиск центра пилота) или "hole" (поиск центра отверстия)
+        """
         # Получаем текущие значения параметров
         f_slow, f_fast, d_seat, h_probe_depth, probe_retract = self.get_current_pilot()
-
-        # Формируем программу поиска центра пилота
-        # programm = (
-        #     f'G54 G90\n'
-        #     f'G21 G91\n'
-        #     f'#5 = #<_x>\n'
-        #     f'#6 = #<_y>\n'
-        #     f'G0 X{d_seat/2+2}\n'
-        #     f'G0 Z{-h_probe_depth}\n'
-        #     f'G38.2 X{-d_seat/2+2} F{f_fast}\n'
-        #     f'G38.4 X{probe_retract*1.2} F{f_slow}\n'
-        #     f'G38.2 X{-probe_retract*3} F{f_slow}\n'
-        #     f'#1 = #<_x>\n'
-        #     f'G0 X{probe_retract*2}\n'
-        #     f'G0 Z{h_probe_depth}\n'
-        #     f'G90\n'
-        #     f'G0 X#5\n'
-        #     f'G91\n'
-        #     f'G0 X{-d_seat/2-2}\n'
-        #     f'G0 Z{-h_probe_depth}\n'
-        #     f'G38.2 X{d_seat/2+2} F{f_fast}\n'
-        #     f'G38.4 X{-probe_retract*1.2} F{f_slow}\n'
-        #     f'G38.2 X{probe_retract*3} F{f_slow}\n'
-        #     f'#2 = #<_x>\n'
-        #     f'G0 X{-probe_retract*2}\n'
-        #     f'G0 Z{h_probe_depth}\n'
-        #     f'G90\n'
-        #     f'G0 X#5\n'
-        #     f'G91\n'
-        #     f'G0 Y{d_seat/2+2}\n'
-        #     f'G0 Z{-h_probe_depth}\n'
-        #     f'G38.2 Y{-d_seat/2+2} F{f_fast}\n'
-        #     f'G38.4 Y{probe_retract*1.2} F{f_slow}\n'
-        #     f'G38.2 Y{-probe_retract*3} F{f_slow}\n'
-        #     f'#3 = #<_y>\n'
-        #     f'G0 Y{probe_retract*2}\n'
-        #     f'G0 Z{h_probe_depth}\n'
-        #     f'G90\n'
-        #     f'G0 Y#6\n'
-        #     f'G91\n'
-        #     f'G0 Y{-d_seat/2-2}\n'
-        #     f'G0 Z{-h_probe_depth}\n'
-        #     f'G38.2 Y{d_seat/2+2} F{f_fast}\n'
-        #     f'G38.4 Y{-probe_retract*1.2} F{f_slow}\n'
-        #     f'G38.2 Y{probe_retract*3} F{f_slow}\n'
-        #     f'#4 = #<_y>\n'
-        #     f'G0 Y{-probe_retract*2}\n'
-        #     f'G0 Z{h_probe_depth}\n'
-        #     f'G90\n'
-        #     f'G0 Y#6\n'
-        #     f'G0 X[ [#1 + #2] / 2 ] Y[ [#3 + #4] / 2 ]\n'
-        #     f'M2')
-
-        programm = (
-            f'G54 G90\n' # Выбор нулевой точки G54 и абсолютное программирование (по осям X, Y, Z)
-            f'G21 G91\n' # Установка единиц измерения в мм (G21) и переход к относительному программированию (G91)
-            f'#5 = #<_x>\n' # Сохранить текущее значение X в переменную #5 (исходное положение по X)
-            f'#6 = #<_y>\n' # Сохранить текущее значение Y в переменную #6 (исходное положение по Y)
-            f'G0 X{d_seat/2+2}\n' # Быстро переместиться по X на позицию (d_seat/2 + 2 мм) от текущей — вход в зону измерения
-            f'G0 Z{-h_probe_depth}\n' # Быстро опуститься по Z на глубину h_probe_depth (вниз — отрицательное значение)
-            f'G38.2 X{-d_seat/2+2} F{f_fast}\n' # Профильное зондирование влево (по X) до срабатывания датчика (F быстрое), начиная с текущей позиции
-            f'G38.4 X{probe_retract*1.2} F{f_slow}\n' # Отъехать назад (вправо) на 1.2×probe_retract с медленной подачей для точности
-            f'G38.2 X{-probe_retract*3} F{f_slow}\n' # Повторное зондирование влево на 3×probe_retract с медленной подачей для точного определения края
-            f'#1 = #<_x>\n' # Зафиксировать координату X левого края заготовки в переменную #1
-            f'G0 X{probe_retract*2}\n'# Отъехать вправо на 2×probe_retract, чтобы освободить зону
-            f'G0 Z{h_probe_depth}\n' # Поднять инструмент на h_probe_depth (вверх), завершение измерения по X слева
-            f'G90\n' # Переключиться на абсолютное программирование
-            f'G0 X#5\n' # 
-            f'G91\n'
-            f'G0 X{-d_seat/2-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 X{d_seat/2+2} F{f_fast}\n'
-            f'G38.4 X{-probe_retract*1.2} F{f_slow}\n'
-            f'G38.2 X{probe_retract*3} F{f_slow}\n'
-            f'#2 = #<_x>\n'
-            f'G0 X{-probe_retract*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 X#5\n'
-            f'G91\n'
-            f'G0 Y{d_seat/2+2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{-d_seat/2+2} F{f_fast}\n'
-            f'G38.4 Y{probe_retract*1.2} F{f_slow}\n'
-            f'G38.2 Y{-probe_retract*3} F{f_slow}\n'
-            f'#3 = #<_y>\n'
-            f'G0 Y{probe_retract*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-            f'G91\n'
-            f'G0 Y{-d_seat/2-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{d_seat/2+2} F{f_fast}\n'
-            f'G38.4 Y{-probe_retract*1.2} F{f_slow}\n'
-            f'G38.2 Y{probe_retract*3} F{f_slow}\n'
-            f'#4 = #<_y>\n'
-            f'G0 Y{-probe_retract*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-            # поворачиваем датчик на 180 градусов и повторяем измерение
-            f'(MSG, Разверните центроискатель на 180 градусов )'
-
-            f'G54 G90\n' # Выбор нулевой точки G54 и абсолютное программирование (по осям X, Y, Z)
-            f'G21 G91\n' # Установка единиц измерения в мм (G21) и переход к относительному программированию (G91)
-            f'#5 = #<_x>\n' # Сохранить текущее значение X в переменную #5 (исходное положение по X)
-            f'#6 = #<_y>\n' # Сохранить текущее значение Y в переменную #6 (исходное положение по Y)
-            f'G0 X{d_seat/2+2}\n' # Быстро переместиться по X на позицию (d_seat/2 + 2 мм) от текущей — вход в зону измерения
-            f'G0 Z{-h_probe_depth}\n' # Быстро опуститься по Z на глубину h_probe_depth (вниз — отрицательное значение)
-            f'G38.2 X{-d_seat/2+2} F{f_fast}\n' # Профильное зондирование влево (по X) до срабатывания датчика (F быстрое), начиная с текущей позиции
-            f'G38.4 X{probe_retract*1.2} F{f_slow}\n' # Отъехать назад (вправо) на 1.2×probe_retract с медленной подачей для точности
-            f'G38.2 X{-probe_retract*3} F{f_slow}\n' # Повторное зондирование влево на 3×probe_retract с медленной подачей для точного определения края
-            f'#7 = #<_x>\n' # Зафиксировать координату X левого края заготовки в переменную #1
-            f'G0 X{probe_retract*2}\n'# Отъехать вправо на 2×probe_retract, чтобы освободить зону
-            f'G0 Z{h_probe_depth}\n' # Поднять инструмент на h_probe_depth (вверх), завершение измерения по X слева
-            f'G90\n' # Переключиться на абсолютное программирование
-            f'G0 X#5\n' # 
-            f'G91\n'
-            f'G0 X{-d_seat/2-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 X{d_seat/2+2} F{f_fast}\n'
-            f'G38.4 X{-probe_retract*1.2} F{f_slow}\n'
-            f'G38.2 X{probe_retract*3} F{f_slow}\n'
-            f'#8 = #<_x>\n'
-            f'G0 X{-probe_retract*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 X#5\n'
-            f'G91\n'
-            f'G0 Y{d_seat/2+2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{-d_seat/2+2} F{f_fast}\n'
-            f'G38.4 Y{probe_retract*1.2} F{f_slow}\n'
-            f'G38.2 Y{-probe_retract*3} F{f_slow}\n'
-            f'#9 = #<_y>\n'
-            f'G0 Y{probe_retract*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-            f'G91\n'
-            f'G0 Y{-d_seat/2-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{d_seat/2+2} F{f_fast}\n'
-            f'G38.4 Y{-probe_retract*1.2} F{f_slow}\n'
-            f'G38.2 Y{probe_retract*3} F{f_slow}\n'
-            f'#10 = #<_y>\n'
-            f'G0 Y{-probe_retract*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-
-            f'G0 X[ [#1 + #2 + #7 + #8] / 4 ] Y[ [#3 + #4 + #9 + # 10] / 4 ]\n'
-            f'M2')
         
+        if mode == "hole":
+            # Программа поиска центра ОТВЕРСТИЯ
+            start_offset = d_seat / 2 - 2  # Начинаем ближе к центру, на 2мм меньше радиуса
+            probe_distance = d_seat - 4    # Расстояние зондирования чуть меньше диаметра
+            
+            programm = (
+                f'(MSG, Поиск центра отверстия)\n'
+                f'G54 G90\n'
+                f'G21 G91\n'
+                f'#5 = #<_x>\n'
+                f'#6 = #<_y>\n'
+                # Зондирование по X: левая стенка
+                f'G0 X-{start_offset}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 X-{probe_distance} F{f_fast}\n'
+                f'G38.4 X{probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 X-{probe_retract*3} F{f_slow}\n'
+                f'#1 = #<_x>\n'
+                f'G0 X{probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                # Зондирование по X: правая стенка
+                f'G90\n'
+                f'G0 X#5\n'
+                f'G91\n'
+                f'G0 X{start_offset}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 X{probe_distance} F{f_fast}\n'
+                f'G38.4 X{-probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 X{probe_retract*3} F{f_slow}\n'
+                f'#2 = #<_x>\n'
+                f'G0 X{-probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                # Зондирование по Y: нижняя стенка
+                f'G90\n'
+                f'G0 X#5\n'
+                f'G0 Y#6\n'
+                f'G91\n'
+                f'G0 Y-{start_offset}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 Y-{probe_distance} F{f_fast}\n'
+                f'G38.4 Y{probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 Y-{probe_retract*3} F{f_slow}\n'
+                f'#3 = #<_y>\n'
+                f'G0 Y{probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                # Зондирование по Y: верхняя стенка
+                f'G90\n'
+                f'G0 X#5\n'
+                f'G0 Y#6\n'
+                f'G91\n'
+                f'G0 Y{start_offset}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 Y{probe_distance} F{f_fast}\n'
+                f'G38.4 Y{-probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 Y{probe_retract*3} F{f_slow}\n'
+                f'#4 = #<_y>\n'
+                f'G0 Y{-probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                # Вычисление центра
+                f'G90\n'
+                f'G0 X[ [#1 + #2] / 2 ] Y[ [#3 + #4] / 2 ]\n'
+                f'M2')
+        else:
+            # Программа поиска центра ПИЛОТА (оригинальный код)
+            programm = (
+                f'G54 G90\n'
+                f'G21 G91\n'
+                f'#5 = #<_x>\n'
+                f'#6 = #<_y>\n'
+                f'G0 X{d_seat/2+2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 X{-d_seat/2+2} F{f_fast}\n'
+                f'G38.4 X{probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 X{-probe_retract*3} F{f_slow}\n'
+                f'#1 = #<_x>\n'
+                f'G0 X{probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 X#5\n'
+                f'G91\n'
+                f'G0 X{-d_seat/2-2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 X{d_seat/2+2} F{f_fast}\n'
+                f'G38.4 X{-probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 X{probe_retract*3} F{f_slow}\n'
+                f'#2 = #<_x>\n'
+                f'G0 X{-probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 X#5\n'
+                f'G91\n'
+                f'G0 Y{d_seat/2+2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 Y{-d_seat/2+2} F{f_fast}\n'
+                f'G38.4 Y{probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 Y{-probe_retract*3} F{f_slow}\n'
+                f'#3 = #<_y>\n'
+                f'G0 Y{probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 Y#6\n'
+                f'G91\n'
+                f'G0 Y{-d_seat/2-2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 Y{d_seat/2+2} F{f_fast}\n'
+                f'G38.4 Y{-probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 Y{probe_retract*3} F{f_slow}\n'
+                f'#4 = #<_y>\n'
+                f'G0 Y{-probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 Y#6\n'
+                f'(MSG, Разверните центроискатель на 180 градусов )\n'
+                f'G54 G90\n'
+                f'G21 G91\n'
+                f'#5 = #<_x>\n'
+                f'#6 = #<_y>\n'
+                f'G0 X{d_seat/2+2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 X{-d_seat/2+2} F{f_fast}\n'
+                f'G38.4 X{probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 X{-probe_retract*3} F{f_slow}\n'
+                f'#7 = #<_x>\n'
+                f'G0 X{probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 X#5\n'
+                f'G91\n'
+                f'G0 X{-d_seat/2-2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 X{d_seat/2+2} F{f_fast}\n'
+                f'G38.4 X{-probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 X{probe_retract*3} F{f_slow}\n'
+                f'#8 = #<_x>\n'
+                f'G0 X{-probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 X#5\n'
+                f'G91\n'
+                f'G0 Y{d_seat/2+2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 Y{-d_seat/2+2} F{f_fast}\n'
+                f'G38.4 Y{probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 Y{-probe_retract*3} F{f_slow}\n'
+                f'#9 = #<_y>\n'
+                f'G0 Y{probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 Y#6\n'
+                f'G91\n'
+                f'G0 Y{-d_seat/2-2}\n'
+                f'G0 Z{-h_probe_depth}\n'
+                f'G38.2 Y{d_seat/2+2} F{f_fast}\n'
+                f'G38.4 Y{-probe_retract*1.2} F{f_slow}\n'
+                f'G38.2 Y{probe_retract*3} F{f_slow}\n'
+                f'#10 = #<_y>\n'
+                f'G0 Y{-probe_retract*2}\n'
+                f'G0 Z{h_probe_depth}\n'
+                f'G90\n'
+                f'G0 Y#6\n'
+                f'G0 X[ [#1 + #2 + #7 + #8] / 4 ] Y[ [#3 + #4 + #9 + #10] / 4 ]\n'
+                f'M2')
+        
+        with open(self.file_path("centr_pr.ngc"), "w", encoding="utf-8") as f:
+            f.write(programm)
         with open(self.file_path("centr_pr.ngc"), "w", encoding="utf-8") as f:
             f.write(programm)
         #-------------------------------------------------------------

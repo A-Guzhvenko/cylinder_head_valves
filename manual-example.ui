@@ -13,10 +13,14 @@
         <property name="shadow-type">in</property>
         <property name="hscrollbar-policy">automatic</property>
         <property name="vscrollbar-policy">automatic</property>
+        <property name="min-content-width">400</property>
+        <property name="min-content-height">300</property>
         <child>
           <object class="GtkViewport">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="min-content-width">400</property>
+            <property name="min-content-height">300</property>
             <child>
               <object class="GtkBox" id="vbox1">
                 <property name="visible">True</property>

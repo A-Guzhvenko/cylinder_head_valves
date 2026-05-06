@@ -1,3 +1,7 @@
+"""
+Модуль для управления обработкой седел клапанов на станке с ЧПУ.
+Интегрируется с LinuxCNC через HAL и предоставляет GUI на основе GTK.
+"""
 import hal
 import numpy as np
 import sys
@@ -13,29 +17,134 @@ from pathlib import Path
 import os
 import json
 from gladevcp.core import Action
+from typing import List, Tuple, Optional, Set, Dict, Any
+from dataclasses import dataclass
 
-# Константы
+# =============================================================================
+# КОНСТАНТЫ
+# =============================================================================
 HOME_DIR = os.path.expanduser("~/") + "/linuxcnc/project/valve_head/"
-TABLE_HEADERS = ["№", "X", "Y", "Тип", "Коэфф. кривизны", "Примечание"]
-CLEARANCE_MULTIPLIERS = {"fast_approach": 1.2, "slow_probe": 3, "retract": 2}
-PILOT_OFFSET = 2.0
+TABLE_HEADERS: List[str] = ["№", "X", "Y", "Тип", "Коэфф. кривизны", "Примечание"]
+CLEARANCE_MULTIPLIERS: Dict[str, float] = {"fast_approach": 1.2, "slow_probe": 3, "retract": 2}
+PILOT_OFFSET: float = 2.0
+DEFAULT_PROBE_RETRACT: float = 2.0
+Z_SAFE_HEIGHT: float = 20.0
 
-def save_gcode_to_file(gcode, filename="cnc_program.ngc"):
+# Типы клапанов
+VALVE_TYPE_INTAKE: str = "впускной"
+VALVE_TYPE_EXHAUST: str = "выпускной"
+
+
+# =============================================================================
+# КЛАССЫ ДАННЫХ
+# =============================================================================
+@dataclass
+class ValveParameters:
+    """Параметры клапана для обработки."""
+    fd: float  # Диаметр заготовки
+    vsd: float  # Глубина седла
+    vsdtr_1: float  # Диаметр перехода 1
+    vsdtr_2: float  # Диаметр перехода 2
+    vsa_1: float  # Угол седла 1
+    vsa_2: float  # Угол седла 2
+    vsw_1: float  # Ширина седла 1
+    vsw_2: float  # Ширина седла 2
+    vsa2_1: float  # Угол 2 седла 1
+    vsa2_2: float  # Угол 2 седла 2
+    ff: float  # Смещение
+    md: float  # Внутренний диаметр
+
+
+@dataclass
+class ProcessingParams:
+    """Параметры обработки."""
+    feed: float
+    rpm: int
+    feed_per_pass: float
+
+
+@dataclass
+class ProbeParams:
+    """Параметры зондирования."""
+    feed_slow: float
+    feed_fast: float
+    seat_diameter: float
+    probe_depth: float
+    probe_retract: float
+
+
+# =============================================================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# =============================================================================
+def save_gcode_to_file(gcode: List[str], filename: str = "cnc_program.ngc") -> None:
     """Сохраняет список команд G-кода в файл."""
     with open(filename, "w") as file:
         file.write("\n".join(gcode))
     print(f"G-код сохранен в {filename}")
 
 
-# Глобальные объекты LinuxCNC
-ACTION = Action()
-ACTION.RELOAD_DISPLAY()
-c = linuxcnc.command()
-s = linuxcnc.stat()
+class LinuxCNCHelper:
+    """Класс-обертка для безопасной работы с LinuxCNC."""
+    
+    def __init__(self):
+        self._command = linuxcnc.command()
+        self._stat = linuxcnc.stat()
+    
+    @property
+    def command(self) -> linuxcnc.command:
+        return self._command
+    
+    @property
+    def stat(self) -> linuxcnc.stat:
+        return self._stat
+    
+    def get_position(self) -> Tuple[float, float, float]:
+        """Безопасное получение позиции от LinuxCNC."""
+        try:
+            self._stat.poll()
+            return self._stat.position
+        except linuxcnc.error as detail:
+            print(f"Ошибка LinuxCNC: {detail}")
+            sys.exit(1)
+    
+    def get_xy(self) -> Tuple[float, float]:
+        """Получает текущие координаты X и Y."""
+        pos = self.get_position()
+        return round(pos[0], 2), round(pos[1], 2)
+    
+    def get_z(self) -> float:
+        """Получает текущую координату Z."""
+        pos = self.get_position()
+        return round(pos[2], 2)
+    
+    def send_mdi_message(self, msg: str) -> None:
+        """Отправляет сообщение через MDI."""
+        self._command.mode(linuxcnc.MODE_MDI)
+        self._command.wait_complete()
+        self._command.mdi(f"(MSG, {msg})")
+    
+    def run_program(self, filepath: str, on_complete_callback=None) -> None:
+        """Запускает программу и ожидает завершения."""
+        self._command.reset_interpreter()
+        self._command.program_open(filepath)
+        self._command.wait_complete(100)
+        self._command.mode(linuxcnc.MODE_AUTO)
+        self._command.auto(linuxcnc.AUTO_RUN, 0)
+        
+        while True:
+            self._stat.poll()
+            if self._stat.interp_state == linuxcnc.INTERP_IDLE:
+                if on_complete_callback:
+                    on_complete_callback()
+                break
+            self._command.wait_complete(10)
 
 
 class ValveSeatContour:
-    def __init__(self, fd, vsdtr, vsa, vsw, vsa2, vsd, y_offset, md):
+    """Класс для представления контура седла клапана."""
+    
+    def __init__(self, fd: float, vsdtr: float, vsa: float, vsw: float, 
+                 vsa2: float, vsd: float, y_offset: float, md: float):
         self.fd = fd
         self.vsdtr = vsdtr
         self.vsa = vsa
@@ -45,7 +154,7 @@ class ValveSeatContour:
         self.y_offset = y_offset
         self.md = md
 
-    def get_breakpoints(self):
+    def get_breakpoints(self) -> List[Tuple[float, float]]:
         """Возвращает массив точек перегиба траектории в формате [(x1, y1), ...]."""
         vsa_rad = math.radians(self.vsa)
         vsa2_rad = math.radians(self.vsa2)

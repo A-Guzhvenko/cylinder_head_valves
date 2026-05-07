@@ -380,7 +380,9 @@ class HandlerClass:
             f.write(program)
 
     def find_center(self, widget) -> None:
-        self.create_program()
+        pilot_btn = self.builder.get_object("probe_mode_pilot")
+        mode = "pilot" if (pilot_btn is None or pilot_btn.get_active()) else "hole"
+        self.create_program(mode=mode)
         self.cnc.run_program(
             self.file_path("centr_pr.ngc"),
             on_complete_callback=lambda: self.message_mdi("Программа завершена."),

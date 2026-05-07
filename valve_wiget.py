@@ -421,6 +421,9 @@ class HandlerClass:
     def find_center(self, widget):
         self.create_program()
         
+        c = linuxcnc.command()
+        s = linuxcnc.stat()
+        
         c.reset_interpreter()
         c.program_open(self.file_path("centr_pr.ngc")) 
         c.wait_complete(100)

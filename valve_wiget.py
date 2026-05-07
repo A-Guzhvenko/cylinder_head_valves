@@ -207,7 +207,7 @@ class HandlerClass:
         )
 
     def _create_hole_program(self, f_slow, f_fast, d_seat, h_probe_depth, probe_retract) -> str:
-        """Программа поиска центра отверстия (4 касания без разворота)."""
+        """Программа поиска центра отверстия (4 касания, Z опускается один раз)."""
         start_offset = d_seat / 2 - 2
         probe_distance = d_seat - 4
         pr = probe_retract
@@ -217,48 +217,50 @@ class HandlerClass:
             f'G21 G91\n'
             f'#5 = #<_x>\n'
             f'#6 = #<_y>\n'
+            # Подход к левой стенке и однократный спуск
             f'G0 X-{start_offset}\n'
             f'G0 Z{-h_probe_depth}\n'
+            # Левая стенка → #1
             f'G38.2 X-{probe_distance} F{f_fast}\n'
             f'G38.4 X{pr*1.2} F{f_slow}\n'
             f'G38.2 X-{pr*3} F{f_slow}\n'
             f'#1 = #<_x>\n'
             f'G0 X{pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
+            # Переход к правой стенке (оставаясь на глубине)
             f'G90\n'
             f'G0 X#5\n'
             f'G91\n'
             f'G0 X{start_offset}\n'
-            f'G0 Z{-h_probe_depth}\n'
+            # Правая стенка → #2
             f'G38.2 X{probe_distance} F{f_fast}\n'
             f'G38.4 X{-pr*1.2} F{f_slow}\n'
             f'G38.2 X{pr*3} F{f_slow}\n'
             f'#2 = #<_x>\n'
             f'G0 X{-pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
+            # Переход к нижней стенке (оставаясь на глубине)
             f'G90\n'
             f'G0 X#5\n'
             f'G0 Y#6\n'
             f'G91\n'
             f'G0 Y-{start_offset}\n'
-            f'G0 Z{-h_probe_depth}\n'
+            # Нижняя стенка → #3
             f'G38.2 Y-{probe_distance} F{f_fast}\n'
             f'G38.4 Y{pr*1.2} F{f_slow}\n'
             f'G38.2 Y-{pr*3} F{f_slow}\n'
             f'#3 = #<_y>\n'
             f'G0 Y{pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
+            # Переход к верхней стенке (оставаясь на глубине)
             f'G90\n'
-            f'G0 X#5\n'
             f'G0 Y#6\n'
             f'G91\n'
             f'G0 Y{start_offset}\n'
-            f'G0 Z{-h_probe_depth}\n'
+            # Верхняя стенка → #4
             f'G38.2 Y{probe_distance} F{f_fast}\n'
             f'G38.4 Y{-pr*1.2} F{f_slow}\n'
             f'G38.2 Y{pr*3} F{f_slow}\n'
             f'#4 = #<_y>\n'
             f'G0 Y{-pr*2}\n'
+            # Подъём и перемещение в центр
             f'G0 Z{h_probe_depth}\n'
             f'G90\n'
             f'G0 X[ [#1 + #2] / 2 ] Y[ [#3 + #4] / 2 ]\n'

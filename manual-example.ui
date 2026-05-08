@@ -487,6 +487,64 @@
                                                     <property name="top-attach">16</property>
                                                   </packing>
                                                 </child>
+                                                <child>
+                                                  <object class="GtkRadioButton" id="probe_mode_pilot_bush">
+                                                    <property name="label" translatable="yes">Пилот + втулка</property>
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">True</property>
+                                                    <property name="receives-default">False</property>
+                                                    <property name="draw-indicator">True</property>
+                                                    <property name="group">probe_mode_pilot</property>
+                                                  </object>
+                                                  <packing>
+                                                    <property name="left-attach">1</property>
+                                                    <property name="top-attach">17</property>
+                                                  </packing>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="label" translatable="yes">Диаметр втулки</property>
+                                                  </object>
+                                                  <packing>
+                                                    <property name="left-attach">0</property>
+                                                    <property name="top-attach">18</property>
+                                                  </packing>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkEntry" id="d_bush">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">True</property>
+                                                    <property name="text" translatable="yes">12</property>
+                                                  </object>
+                                                  <packing>
+                                                    <property name="left-attach">1</property>
+                                                    <property name="top-attach">18</property>
+                                                  </packing>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="label" translatable="yes">Глубина втулки</property>
+                                                  </object>
+                                                  <packing>
+                                                    <property name="left-attach">0</property>
+                                                    <property name="top-attach">19</property>
+                                                  </packing>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkEntry" id="h_bush">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">True</property>
+                                                    <property name="text" translatable="yes">10</property>
+                                                  </object>
+                                                  <packing>
+                                                    <property name="left-attach">1</property>
+                                                    <property name="top-attach">19</property>
+                                                  </packing>
+                                                </child>
                                               </object>
                                             </child>
                                           </object>

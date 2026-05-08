@@ -208,19 +208,20 @@ class HandlerClass:
 
     def _create_hole_program(self, f_slow, f_fast, d_seat, h_probe_depth, probe_retract,
                               d_bush, h_bush) -> str:
-        """Двухэтапный поиск центра: сначала седло (однократно), затем втулка (дважды с разворотом).
-
-        Этап 1 — поиск центра седла: Z опускается на h_probe_depth, 4 касания по d_seat.
-        Этап 2 — поиск центра втулки: суброутина o100 вызывается дважды с разворотом на 180°,
-        результаты (#31-#34) хранятся в глобальных переменных.
+        """Двухэтапный поиск центра:
+        Этап 1 — центр седла: щуп опускается на h_probe_depth и 4 раза касается стенок
+                  отверстия седла изнутри (d_seat). Z поднимается, щуп встаёт в центр.
+        Этап 2 — центр втулки: щуп опускается на h_bush, суброутина o100 зондирует
+                  стенки втулки (d_bush) дважды с разворотом на 180°, результат усредняется.
         """
-        so_s = d_seat / 2 - 2    # смещение для подхода к стенке седла
-        pd_s = d_seat - 4        # дистанция зондирования седла
-        so_b = d_bush / 2 - 2    # смещение для подхода к стенке втулки
-        pd_b = d_bush - 4        # дистанция зондирования втулки
+        so_s = d_seat / 2 - 2    # смещение от центра к стенке седла
+        pd_s = d_seat - 4        # дистанция зондирования седла (с запасом)
+        so_b = d_bush / 2 - 2    # смещение от центра к стенке втулки
+        pd_b = d_bush - 4        # дистанция зондирования втулки (с запасом)
         pr = probe_retract
 
-        # Суброутина: 4-стороннее зондирование втулки на текущей глубине Z
+        # Суброутина o100: 4-стороннее зондирование втулки на текущей глубине Z.
+        # Сохраняет текущий центр в #35/#36, результаты стенок — в #31-#34.
         bush_sub = (
             f'o100 sub\n'
             f'#35 = #<_x>\n'
@@ -257,21 +258,23 @@ class HandlerClass:
             f'o100 endsub\n\n'
         )
 
-        # Этап 1: поиск центра седла (однократно, h_probe_depth, d_seat)
+        # Этап 1: поиск центра седла (однократно, изнутри отверстия)
         seat_part = (
-            f'(MSG, Поиск центра седла клапана)\n'
+            f'(MSG, Поиск центра отверстия седла)\n'
             f'G54 G90\n'
             f'G21 G91\n'
             f'#5 = #<_x>\n'
             f'#6 = #<_y>\n'
-            f'G0 X-{so_s}\n'
             f'G0 Z-{h_probe_depth}\n'
+            # левая стенка
+            f'G0 X-{so_s}\n'
             f'G38.2 X-{pd_s} F{f_fast}\n'
             f'G38.4 X{pr*1.2} F{f_slow}\n'
             f'G38.2 X-{pr*3} F{f_slow}\n'
             f'#1 = #<_x>\n'
             f'G0 X{pr*2}\n'
             f'G90\nG0 X#5\nG91\n'
+            # правая стенка
             f'G0 X{so_s}\n'
             f'G38.2 X{pd_s} F{f_fast}\n'
             f'G38.4 X-{pr*1.2} F{f_slow}\n'
@@ -279,6 +282,7 @@ class HandlerClass:
             f'#2 = #<_x>\n'
             f'G0 X-{pr*2}\n'
             f'G90\nG0 X#5\nG0 Y#6\nG91\n'
+            # нижняя стенка
             f'G0 Y-{so_s}\n'
             f'G38.2 Y-{pd_s} F{f_fast}\n'
             f'G38.4 Y{pr*1.2} F{f_slow}\n'
@@ -286,20 +290,21 @@ class HandlerClass:
             f'#3 = #<_y>\n'
             f'G0 Y{pr*2}\n'
             f'G90\nG0 Y#6\nG91\n'
+            # верхняя стенка
             f'G0 Y{so_s}\n'
             f'G38.2 Y{pd_s} F{f_fast}\n'
             f'G38.4 Y-{pr*1.2} F{f_slow}\n'
             f'G38.2 Y{pr*3} F{f_slow}\n'
             f'#4 = #<_y>\n'
             f'G0 Y-{pr*2}\n'
+            # подъём и перемещение в центр седла
             f'G0 Z{h_probe_depth}\n'
             f'G90\n'
             f'G0 X[ [#1 + #2] / 2 ] Y[ [#3 + #4] / 2 ]\n'
         )
 
-        # Этап 2: поиск центра втулки (два прохода с разворотом, h_bush, d_bush)
+        # Этап 2: поиск центра втулки (два прохода с разворотом на 180°)
         bush_part = (
-            f'(MSG, Поиск центра втулки - проход 1)\n'
             f'G91\n'
             f'G0 Z-{h_bush}\n'
             f'o100 call\n'
@@ -309,7 +314,6 @@ class HandlerClass:
             f'G0 X[ [#41 + #42] / 2 ] Y[ [#43 + #44] / 2 ]\n'
             f'(MSG, Разверните щуп на 180 градусов)\n'
             f'M0\n'
-            f'(MSG, Поиск центра втулки - проход 2)\n'
             f'G91\n'
             f'G0 Z-{h_bush}\n'
             f'o100 call\n'
@@ -321,132 +325,22 @@ class HandlerClass:
 
         return bush_sub + seat_part + bush_part
 
-    def _create_pilot_program(self, f_slow, f_fast, d_seat, h_probe_depth, probe_retract) -> str:
-        """Программа поиска центра пилота (8 касаний с разворотом на 180°)."""
-        r = d_seat / 2
-        pr = probe_retract
-        return (
-            f'G54 G90\n'
-            f'G21 G91\n'
-            f'#5 = #<_x>\n'
-            f'#6 = #<_y>\n'
-            f'G0 X{r+2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 X{-r+2} F{f_fast}\n'
-            f'G38.4 X{pr*1.2} F{f_slow}\n'
-            f'G38.2 X{-pr*3} F{f_slow}\n'
-            f'#1 = #<_x>\n'
-            f'G0 X{pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 X#5\n'
-            f'G91\n'
-            f'G0 X{-r-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 X{r+2} F{f_fast}\n'
-            f'G38.4 X{-pr*1.2} F{f_slow}\n'
-            f'G38.2 X{pr*3} F{f_slow}\n'
-            f'#2 = #<_x>\n'
-            f'G0 X{-pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 X#5\n'
-            f'G91\n'
-            f'G0 Y{r+2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{-r+2} F{f_fast}\n'
-            f'G38.4 Y{pr*1.2} F{f_slow}\n'
-            f'G38.2 Y{-pr*3} F{f_slow}\n'
-            f'#3 = #<_y>\n'
-            f'G0 Y{pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-            f'G91\n'
-            f'G0 Y{-r-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{r+2} F{f_fast}\n'
-            f'G38.4 Y{-pr*1.2} F{f_slow}\n'
-            f'G38.2 Y{pr*3} F{f_slow}\n'
-            f'#4 = #<_y>\n'
-            f'G0 Y{-pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-            f'(MSG, Разверните центроискатель на 180 градусов )\n'
-            f'G54 G90\n'
-            f'G21 G91\n'
-            f'#5 = #<_x>\n'
-            f'#6 = #<_y>\n'
-            f'G0 X{r+2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 X{-r+2} F{f_fast}\n'
-            f'G38.4 X{pr*1.2} F{f_slow}\n'
-            f'G38.2 X{-pr*3} F{f_slow}\n'
-            f'#7 = #<_x>\n'
-            f'G0 X{pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 X#5\n'
-            f'G91\n'
-            f'G0 X{-r-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 X{r+2} F{f_fast}\n'
-            f'G38.4 X{-pr*1.2} F{f_slow}\n'
-            f'G38.2 X{pr*3} F{f_slow}\n'
-            f'#8 = #<_x>\n'
-            f'G0 X{-pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 X#5\n'
-            f'G91\n'
-            f'G0 Y{r+2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{-r+2} F{f_fast}\n'
-            f'G38.4 Y{pr*1.2} F{f_slow}\n'
-            f'G38.2 Y{-pr*3} F{f_slow}\n'
-            f'#9 = #<_y>\n'
-            f'G0 Y{pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-            f'G91\n'
-            f'G0 Y{-r-2}\n'
-            f'G0 Z{-h_probe_depth}\n'
-            f'G38.2 Y{r+2} F{f_fast}\n'
-            f'G38.4 Y{-pr*1.2} F{f_slow}\n'
-            f'G38.2 Y{pr*3} F{f_slow}\n'
-            f'#10 = #<_y>\n'
-            f'G0 Y{-pr*2}\n'
-            f'G0 Z{h_probe_depth}\n'
-            f'G90\n'
-            f'G0 Y#6\n'
-            f'G0 X[ [#1 + #2 + #7 + #8] / 4 ] Y[ [#3 + #4 + #9 + #10] / 4 ]\n'
-            f'M2'
-        )
-
     def get_current_bush_params(self) -> Tuple[float, float]:
         return (
             self.get_entry_value("d_bush"),
             self.get_entry_value("h_bush"),
         )
 
-    def create_program(self, mode: str = "pilot") -> None:
+    def create_program(self) -> None:
         f_slow, f_fast, d_seat, h_probe_depth, probe_retract = self.get_current_pilot()
-        if mode == "hole":
-            d_bush, h_bush = self.get_current_bush_params()
-            program = self._create_hole_program(
-                f_slow, f_fast, d_seat, h_probe_depth, probe_retract, d_bush, h_bush)
-        else:
-            program = self._create_pilot_program(f_slow, f_fast, d_seat, h_probe_depth, probe_retract)
-
+        d_bush, h_bush = self.get_current_bush_params()
+        program = self._create_hole_program(
+            f_slow, f_fast, d_seat, h_probe_depth, probe_retract, d_bush, h_bush)
         with open(self.file_path("centr_pr.ngc"), "w", encoding="utf-8") as f:
             f.write(program)
 
     def find_center(self, widget) -> None:
-        hole_btn = self.builder.get_object("probe_mode_hole")
-        mode = "hole" if (hole_btn and hole_btn.get_active()) else "pilot"
-        self.create_program(mode=mode)
+        self.create_program()
         self.cnc.run_program(
             self.file_path("centr_pr.ngc"),
             on_complete_callback=lambda: self.message_mdi("Программа завершена."),

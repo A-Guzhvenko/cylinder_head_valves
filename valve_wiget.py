@@ -206,7 +206,7 @@ class HandlerClass:
             self.get_entry_value("probe_retract"),
         )
 
-    def _create_hole_program(self, f_slow, f_fast, d_seat, h_probe_depth, probe_retract,
+    def _create_hole_program(self, f_slow, f_fast, f_trav, d_seat, h_probe_depth, probe_retract,
                               d_bush, h_bush) -> str:
         """Двухэтапный поиск центра:
         Этап 1 — центр седла: щуп опускается на h_probe_depth и 4 раза касается стенок
@@ -227,34 +227,34 @@ class HandlerClass:
             f'#35 = #<_x>\n'
             f'#36 = #<_y>\n'
             f'G91\n'
-            f'G0 X-{so_b}\n'
+            f'G1 X-{so_b} F{f_trav}\n'
             f'G38.2 X-{pd_b} F{f_fast}\n'
             f'G38.4 X{pr*1.2} F{f_slow}\n'
             f'G38.2 X-{pr*3} F{f_slow}\n'
             f'#31 = #<_x>\n'
-            f'G0 X{pr*2}\n'
-            f'G90\nG0 X#35\nG91\n'
-            f'G0 X{so_b}\n'
+            f'G1 X{pr*2} F{f_trav}\n'
+            f'G90\nG1 X#35 F{f_trav}\nG91\n'
+            f'G1 X{so_b} F{f_trav}\n'
             f'G38.2 X{pd_b} F{f_fast}\n'
             f'G38.4 X-{pr*1.2} F{f_slow}\n'
             f'G38.2 X{pr*3} F{f_slow}\n'
             f'#32 = #<_x>\n'
-            f'G0 X-{pr*2}\n'
-            f'G90\nG0 X#35\nG0 Y#36\nG91\n'
-            f'G0 Y-{so_b}\n'
+            f'G1 X-{pr*2} F{f_trav}\n'
+            f'G90\nG1 X#35 F{f_trav}\nG1 Y#36 F{f_trav}\nG91\n'
+            f'G1 Y-{so_b} F{f_trav}\n'
             f'G38.2 Y-{pd_b} F{f_fast}\n'
             f'G38.4 Y{pr*1.2} F{f_slow}\n'
             f'G38.2 Y-{pr*3} F{f_slow}\n'
             f'#33 = #<_y>\n'
-            f'G0 Y{pr*2}\n'
-            f'G90\nG0 Y#36\nG91\n'
-            f'G0 Y{so_b}\n'
+            f'G1 Y{pr*2} F{f_trav}\n'
+            f'G90\nG1 Y#36 F{f_trav}\nG91\n'
+            f'G1 Y{so_b} F{f_trav}\n'
             f'G38.2 Y{pd_b} F{f_fast}\n'
             f'G38.4 Y-{pr*1.2} F{f_slow}\n'
             f'G38.2 Y{pr*3} F{f_slow}\n'
             f'#34 = #<_y>\n'
-            f'G0 Y-{pr*2}\n'
-            f'G90\nG0 X#35\nG0 Y#36\n'
+            f'G1 Y-{pr*2} F{f_trav}\n'
+            f'G90\nG1 X#35 F{f_trav}\nG1 Y#36 F{f_trav}\n'
             f'o100 endsub\n\n'
         )
 
@@ -265,62 +265,62 @@ class HandlerClass:
             f'G21 G91\n'
             f'#5 = #<_x>\n'
             f'#6 = #<_y>\n'
-            f'G0 Z-{h_probe_depth}\n'
+            f'G1 Z-{h_probe_depth} F{f_trav}\n'
             # левая стенка
-            f'G0 X-{so_s}\n'
+            f'G1 X-{so_s} F{f_trav}\n'
             f'G38.2 X-{pd_s} F{f_fast}\n'
             f'G38.4 X{pr*1.2} F{f_slow}\n'
             f'G38.2 X-{pr*3} F{f_slow}\n'
             f'#1 = #<_x>\n'
-            f'G0 X{pr*2}\n'
-            f'G90\nG0 X#5\nG91\n'
+            f'G1 X{pr*2} F{f_trav}\n'
+            f'G90\nG1 X#5 F{f_trav}\nG91\n'
             # правая стенка
-            f'G0 X{so_s}\n'
+            f'G1 X{so_s} F{f_trav}\n'
             f'G38.2 X{pd_s} F{f_fast}\n'
             f'G38.4 X-{pr*1.2} F{f_slow}\n'
             f'G38.2 X{pr*3} F{f_slow}\n'
             f'#2 = #<_x>\n'
-            f'G0 X-{pr*2}\n'
-            f'G90\nG0 X#5\nG0 Y#6\nG91\n'
+            f'G1 X-{pr*2} F{f_trav}\n'
+            f'G90\nG1 X#5 F{f_trav}\nG1 Y#6 F{f_trav}\nG91\n'
             # нижняя стенка
-            f'G0 Y-{so_s}\n'
+            f'G1 Y-{so_s} F{f_trav}\n'
             f'G38.2 Y-{pd_s} F{f_fast}\n'
             f'G38.4 Y{pr*1.2} F{f_slow}\n'
             f'G38.2 Y-{pr*3} F{f_slow}\n'
             f'#3 = #<_y>\n'
-            f'G0 Y{pr*2}\n'
-            f'G90\nG0 Y#6\nG91\n'
+            f'G1 Y{pr*2} F{f_trav}\n'
+            f'G90\nG1 Y#6 F{f_trav}\nG91\n'
             # верхняя стенка
-            f'G0 Y{so_s}\n'
+            f'G1 Y{so_s} F{f_trav}\n'
             f'G38.2 Y{pd_s} F{f_fast}\n'
             f'G38.4 Y-{pr*1.2} F{f_slow}\n'
             f'G38.2 Y{pr*3} F{f_slow}\n'
             f'#4 = #<_y>\n'
-            f'G0 Y-{pr*2}\n'
+            f'G1 Y-{pr*2} F{f_trav}\n'
             # подъём и перемещение в центр седла
-            f'G0 Z{h_probe_depth}\n'
+            f'G1 Z{h_probe_depth} F{f_trav}\n'
             f'G90\n'
-            f'G0 X[ [#1 + #2] / 2 ] Y[ [#3 + #4] / 2 ]\n'
+            f'G1 X[ [#1 + #2] / 2 ] Y[ [#3 + #4] / 2 ] F{f_trav}\n'
         )
 
         # Этап 2: поиск центра втулки (два прохода с разворотом на 180°)
         bush_part = (
             f'G91\n'
-            f'G0 Z-{h_bush}\n'
+            f'G1 Z-{h_bush} F{f_trav}\n'
             f'o100 call\n'
             f'#41 = #31\n#42 = #32\n#43 = #33\n#44 = #34\n'
             # остаёмся на глубине, встаём в центр первого прохода
             f'G90\n'
-            f'G0 X[ [#41 + #42] / 2 ] Y[ [#43 + #44] / 2 ]\n'
+            f'G1 X[ [#41 + #42] / 2 ] Y[ [#43 + #44] / 2 ] F{f_trav}\n'
             f'(MSG, Разверните щуп на 180 градусов)\n'
             f'M0\n'
             # второй проход — щуп уже на глубине h_bush
             f'o100 call\n'
             # поднимаем только после второго прохода
             f'G91\n'
-            f'G0 Z{h_bush}\n'
+            f'G1 Z{h_bush} F{f_trav}\n'
             f'G90\n'
-            f'G0 X[ [#41 + #42 + #31 + #32] / 4 ] Y[ [#43 + #44 + #33 + #34] / 4 ]\n'
+            f'G1 X[ [#41 + #42 + #31 + #32] / 4 ] Y[ [#43 + #44 + #33 + #34] / 4 ] F{f_trav}\n'
             f'M2'
         )
 
@@ -335,8 +335,9 @@ class HandlerClass:
     def create_program(self) -> None:
         f_slow, f_fast, d_seat, h_probe_depth, probe_retract = self.get_current_pilot()
         d_bush, h_bush = self.get_current_bush_params()
+        f_trav = self.get_entry_value("f_traverse", default=800.0)
         program = self._create_hole_program(
-            f_slow, f_fast, d_seat, h_probe_depth, probe_retract, d_bush, h_bush)
+            f_slow, f_fast, f_trav, d_seat, h_probe_depth, probe_retract, d_bush, h_bush)
         with open(self.file_path("centr_pr.ngc"), "w", encoding="utf-8") as f:
             f.write(program)
 

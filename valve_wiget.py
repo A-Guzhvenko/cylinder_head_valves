@@ -208,43 +208,47 @@ class HandlerClass:
 
     def _create_hole_program(self, f_slow, f_fast, d_seat, h_probe_depth, probe_retract,
                               d_bush, h_bush) -> str:
-        """Поиск центра отверстия втулки: Z опускается один раз, два прохода с разворотом на 180°.
+        """Двухэтапный поиск центра: сначала седло (однократно), затем втулка (дважды с разворотом).
 
-        Суброутина o100 делает 4-стороннее зондирование на текущей глубине Z,
-        результаты хранятся в глобальных переменных #31-#34.
+        Этап 1 — поиск центра седла: Z опускается на h_probe_depth, 4 касания по d_seat.
+        Этап 2 — поиск центра втулки: суброутина o100 вызывается дважды с разворотом на 180°,
+        результаты (#31-#34) хранятся в глобальных переменных.
         """
-        so = d_bush / 2 - 2   # начальное смещение для подхода к стенке
-        pd = d_bush - 4        # дистанция зондирования
+        so_s = d_seat / 2 - 2    # смещение для подхода к стенке седла
+        pd_s = d_seat - 4        # дистанция зондирования седла
+        so_b = d_bush / 2 - 2    # смещение для подхода к стенке втулки
+        pd_b = d_bush - 4        # дистанция зондирования втулки
         pr = probe_retract
 
-        hole_sub = (
+        # Суброутина: 4-стороннее зондирование втулки на текущей глубине Z
+        bush_sub = (
             f'o100 sub\n'
             f'#35 = #<_x>\n'
             f'#36 = #<_y>\n'
             f'G91\n'
-            f'G0 X-{so}\n'
-            f'G38.2 X-{pd} F{f_fast}\n'
+            f'G0 X-{so_b}\n'
+            f'G38.2 X-{pd_b} F{f_fast}\n'
             f'G38.4 X{pr*1.2} F{f_slow}\n'
             f'G38.2 X-{pr*3} F{f_slow}\n'
             f'#31 = #<_x>\n'
             f'G0 X{pr*2}\n'
             f'G90\nG0 X#35\nG91\n'
-            f'G0 X{so}\n'
-            f'G38.2 X{pd} F{f_fast}\n'
+            f'G0 X{so_b}\n'
+            f'G38.2 X{pd_b} F{f_fast}\n'
             f'G38.4 X-{pr*1.2} F{f_slow}\n'
             f'G38.2 X{pr*3} F{f_slow}\n'
             f'#32 = #<_x>\n'
             f'G0 X-{pr*2}\n'
             f'G90\nG0 X#35\nG0 Y#36\nG91\n'
-            f'G0 Y-{so}\n'
-            f'G38.2 Y-{pd} F{f_fast}\n'
+            f'G0 Y-{so_b}\n'
+            f'G38.2 Y-{pd_b} F{f_fast}\n'
             f'G38.4 Y{pr*1.2} F{f_slow}\n'
             f'G38.2 Y-{pr*3} F{f_slow}\n'
             f'#33 = #<_y>\n'
             f'G0 Y{pr*2}\n'
             f'G90\nG0 Y#36\nG91\n'
-            f'G0 Y{so}\n'
-            f'G38.2 Y{pd} F{f_fast}\n'
+            f'G0 Y{so_b}\n'
+            f'G38.2 Y{pd_b} F{f_fast}\n'
             f'G38.4 Y-{pr*1.2} F{f_slow}\n'
             f'G38.2 Y{pr*3} F{f_slow}\n'
             f'#34 = #<_y>\n'
@@ -253,18 +257,59 @@ class HandlerClass:
             f'o100 endsub\n\n'
         )
 
-        body = (
-            f'(MSG, Поиск центра отверстия втулки)\n'
+        # Этап 1: поиск центра седла (однократно, h_probe_depth, d_seat)
+        seat_part = (
+            f'(MSG, Поиск центра седла клапана)\n'
             f'G54 G90\n'
             f'G21 G91\n'
+            f'#5 = #<_x>\n'
+            f'#6 = #<_y>\n'
+            f'G0 X-{so_s}\n'
+            f'G0 Z-{h_probe_depth}\n'
+            f'G38.2 X-{pd_s} F{f_fast}\n'
+            f'G38.4 X{pr*1.2} F{f_slow}\n'
+            f'G38.2 X-{pr*3} F{f_slow}\n'
+            f'#1 = #<_x>\n'
+            f'G0 X{pr*2}\n'
+            f'G90\nG0 X#5\nG91\n'
+            f'G0 X{so_s}\n'
+            f'G38.2 X{pd_s} F{f_fast}\n'
+            f'G38.4 X-{pr*1.2} F{f_slow}\n'
+            f'G38.2 X{pr*3} F{f_slow}\n'
+            f'#2 = #<_x>\n'
+            f'G0 X-{pr*2}\n'
+            f'G90\nG0 X#5\nG0 Y#6\nG91\n'
+            f'G0 Y-{so_s}\n'
+            f'G38.2 Y-{pd_s} F{f_fast}\n'
+            f'G38.4 Y{pr*1.2} F{f_slow}\n'
+            f'G38.2 Y-{pr*3} F{f_slow}\n'
+            f'#3 = #<_y>\n'
+            f'G0 Y{pr*2}\n'
+            f'G90\nG0 Y#6\nG91\n'
+            f'G0 Y{so_s}\n'
+            f'G38.2 Y{pd_s} F{f_fast}\n'
+            f'G38.4 Y-{pr*1.2} F{f_slow}\n'
+            f'G38.2 Y{pr*3} F{f_slow}\n'
+            f'#4 = #<_y>\n'
+            f'G0 Y-{pr*2}\n'
+            f'G0 Z{h_probe_depth}\n'
+            f'G90\n'
+            f'G0 X[ [#1 + #2] / 2 ] Y[ [#3 + #4] / 2 ]\n'
+        )
+
+        # Этап 2: поиск центра втулки (два прохода с разворотом, h_bush, d_bush)
+        bush_part = (
+            f'(MSG, Поиск центра втулки - проход 1)\n'
+            f'G91\n'
             f'G0 Z-{h_bush}\n'
             f'o100 call\n'
             f'#41 = #31\n#42 = #32\n#43 = #33\n#44 = #34\n'
             f'G0 Z{h_bush}\n'
             f'G90\n'
             f'G0 X[ [#41 + #42] / 2 ] Y[ [#43 + #44] / 2 ]\n'
-            f'(MSG, Разверните инструмент на 180 градусов)\n'
+            f'(MSG, Разверните щуп на 180 градусов)\n'
             f'M0\n'
+            f'(MSG, Поиск центра втулки - проход 2)\n'
             f'G91\n'
             f'G0 Z-{h_bush}\n'
             f'o100 call\n'
@@ -274,7 +319,7 @@ class HandlerClass:
             f'M2'
         )
 
-        return hole_sub + body
+        return bush_sub + seat_part + bush_part
 
     def _create_pilot_program(self, f_slow, f_fast, d_seat, h_probe_depth, probe_retract) -> str:
         """Программа поиска центра пилота (8 касаний с разворотом на 180°)."""
